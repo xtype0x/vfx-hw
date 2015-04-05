@@ -1,3 +1,13 @@
 test-case/img01.jpg	128
 test-case/img02.jpg	64
 test-case/img03.jpg	32
+
+%belg001.jpg -2
+%belg002.jpg -1
+%belg003.jpg 0
+%belg004.jpg 1
+%belg005.jpg 2
+%belg006.jpg 3
+%belg007.jpg 4
+%belg008.jpg 5
+%belg009.jpg 6
