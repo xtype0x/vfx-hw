@@ -1,0 +1,3 @@
+test-case/img01.jpg	128
+test-case/img02.jpg	64
+test-case/img03.jpg	32
