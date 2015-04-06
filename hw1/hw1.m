@@ -32,7 +32,7 @@ file_num = size(file_lists,2);
 %sampling and radiance map recovering
 disp('Sampling and radiance mapping...');
 fflush(stdout);
-sample_num = 500;
+sample_num = 1500;
 sample_w = randi([1 size(img,1)],sample_num,1);
 sample_h = randi([1 size(img,2)],sample_num,1);
 Z = zeros(sample_num,size(file_lists,2),3);
@@ -76,36 +76,37 @@ end
 % 	end
 % end
 
-disp('output hdr...');
-fflush(stdout);
-progress=0;
-output_num=1;
-choose = round(size(imgs,2)/2);
-img = imgs{1};
-img = cat(3,img,zeros(size(img,1),size(img,2)));
-for i = 1:size(img,1)
-	for j = 1:size(img,2)
-		total_w=0;
-		total_exposure=0;
-		for c = 1:3
-			total_exposure += w(1+img(i,j,c))*(g{c}(img(i,j,c)+1)-B(1));
-			total_w += w(img(i,j,c)+1);
-		end
-		if total_w == 0
-			img(i,j,4) = round(exp(total_exposure/3))
-		else
-			img(i,j,4)= round(exp(total_exposure/total_w));
-		end
-		progress++;
-		if progress/size(img,1)/size(img,2) >= output_num
-			disp(sprintf('%d%% complete',output_num++));
-			fflush(stdout);
-		end
-	end
-end
+% disp('output hdr...');
+% fflush(stdout);
+% progress=0;
+% output_num=1;
+% choose = round(size(imgs,2)/2);
+% img = imgs{1};
+% img = cat(3,img,zeros(size(img,1),size(img,2)));
+% for i = 1:size(img,1)
+% 	for j = 1:size(img,2)
+% 		total_w=0;
+% 		total_exposure=0;
+% 		for c = 1:3
+% 			total_exposure += w(1+img(i,j,c))*(g{c}(img(i,j,c)+1)-B(1));
+% 			total_w += w(img(i,j,c)+1);
+% 		end
+% 		if total_w == 0
+% 			img(i,j,4) = round(exp(total_exposure/3))
+% 		else
+% 			img(i,j,4)= round(exp(total_exposure/total_w));
+% 		end
+% 		progress++;
+% 		if progress/size(img,1)/size(img,2) >= output_num
+% 			disp(sprintf('%d%% complete',output_num++));
+% 			fflush(stdout);
+% 		end
+% 	end
+% end
 
-
-imwrite(img,'output.hdr');
+% imwrite(img,'output.hdr');
+% rgb = tonemap(hdr);
+% figure; imshow(rgb);
 
 
 
