@@ -4,6 +4,7 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include "sift.h"
 
 using namespace cv;
 using namespace std;
@@ -11,16 +12,14 @@ using namespace std;
 
 int main(int argc, char const *argv[])
 {
-	Mat image = imread("test-case/grail00.jpg",0);
+	Mat image = imread("../test-case/grail00.jpg",0);
 
 	if(!image.data){//check if image is created
 		cerr<<"The image is not found"<<endl;
 		exit(1);
 	}
 
-	namedWindow("Output Image");
-	imshow("Output Image",image);
-	waitKey(0);
+	Sift s("../test-case/grail00.jpg",4,2);
 
 	return 0;
 }
