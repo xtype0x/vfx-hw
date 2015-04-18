@@ -1,3 +1,4 @@
 .DS_Store
-hw1/reference/
+reference/
 *.dSYM
+test-case/
