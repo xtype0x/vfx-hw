@@ -248,12 +248,62 @@ void Sift::detect_extrema(){
 	}
 	// cout<<kp_num<<endl;
 	// namedWindow("gg");
-	// imshow("gg",extrema[0][0]);
+	// imshow("gg",extrema[1][0]);
 	// waitKey(0);
 }
 
 void Sift::assign_orientations(){
-	
+	//initialize images holdingmagnitude and direction of gradient for all blurred images
+	Mat **magnitude = new Mat*[octaves];
+	Mat **orientation = new Mat*[octaves];
+	for(int i = 0; i < octaves; i++){
+		magnitude[i] = new Mat[intervals];
+		orientation = new Mat[intervals];
+	}
+
+	for(int i = 0; i < octaves; i++){
+		for(int j = 1; j <= intervals; j++){
+			magnitude[i][j-1].create(gList[i][j].rows, gList[i][j].cols, CV_64FC1);
+			magnitude[i][j-1].setTo(Scalar(0.0));
+			orientation[i][j-1].create(gList[i][j].rows, gList[i][j].cols, CV_64F);
+			orientation[i][j-1].setTo(Scalar(0.0));
+
+			//calculate magnitude and orientation
+			for(int xi = 1; xi < gList[i][j].size().width-1; xi++){
+				for(int yi = 1; yi < gList[i][j].size().height-1; yi++){
+					double dx = gList[i][j].at<double>(yi,xi+1) - gList[i][j].at<double>(yi,xi-1);
+					double dy = gList[i][j].at<double>(yi+1, xi) - gList[i][j].at<double>(yi-1, xi);
+
+					//save magnitude and orientation
+					magnitude[i][j-1].at<double>(yi,xi) = sqrt(dx*dx + dy*dy);
+					double ori = atan(dy/dx);
+					orientation[i][j-1].at<double>(yi,xi) = Scalar(ori);
+				}
+			}
+		}
+	}
+	//histograms
+	double* hist_orient = new double[NUM_BINS];
+
+	for(int i = 0; i < octaves; i++){
+		unsigned scale = (unsigned)pow(2.0,(double)i);
+		unsigned width = gList[i][0].size().width;
+		unsigned height = gList[i][0].size().height;
+
+		for(int j = 1; j < intervals+1; j++){
+			
+		}
+	}
+
+
+	//release allocate memory
+	for(int i = 0; i < octaves; i++){
+		delete [] magnitude[i];
+		delete [] orientation[i];
+	}
+	delete [] magnitude;
+	delete [] orientation;
+	delete [] hist_orient;
 }
 
 void Sift::extract_keypoint_descriptors(){
