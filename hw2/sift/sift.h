@@ -39,9 +39,9 @@ private:
 	unsigned intervals;
 	int keypoint_num;
 
-	Mat ***gList;		//list of gaussian blurred images
-	Mat ***dogList;		//list of dog images
-	Mat ***extrema;		//list of extrema points
+	Mat **gList;		//list of gaussian blurred images
+	Mat **dogList;		//list of dog images
+	Mat **extrema;		//list of extrema points
 	double **absSigma;	//list of sigma used to blur image
 
 	vector<Keypoint> keypoints;

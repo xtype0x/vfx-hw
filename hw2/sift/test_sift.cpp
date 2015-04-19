@@ -20,6 +20,7 @@ int main(int argc, char const *argv[])
 	}
 
 	Sift s("../test-case/grail00.jpg",4,2);
+	s.do_sift();
 
 	return 0;
 }
