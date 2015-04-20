@@ -258,7 +258,7 @@ void Sift::assign_orientations(){
 	Mat **orientation = new Mat*[octaves];
 	for(int i = 0; i < octaves; i++){
 		magnitude[i] = new Mat[intervals];
-		orientation = new Mat[intervals];
+		orientation[i] = new Mat[intervals];
 	}
 
 	for(int i = 0; i < octaves; i++){
@@ -277,7 +277,7 @@ void Sift::assign_orientations(){
 					//save magnitude and orientation
 					magnitude[i][j-1].at<double>(yi,xi) = sqrt(dx*dx + dy*dy);
 					double ori = atan(dy/dx);
-					orientation[i][j-1].at<double>(yi,xi) = Scalar(ori);
+					orientation[i][j-1].at<double>(yi,xi) = ori;
 				}
 			}
 		}
@@ -287,14 +287,108 @@ void Sift::assign_orientations(){
 
 	for(int i = 0; i < octaves; i++){
 		unsigned scale = (unsigned)pow(2.0,(double)i);
-		unsigned width = gList[i][0].size().width;
-		unsigned height = gList[i][0].size().height;
 
 		for(int j = 1; j < intervals+1; j++){
-			
+			Mat weight(gList[i][0].rows, gList[i][0].cols, CV_64FC1);
+			Mat mask(gList[i][0].rows, gList[i][0].cols, CV_64FC1);
+			GaussianBlur(magnitude[i][j-1], weight, Size(0,0), 1.5*absSigma[i][j]);
+			mask.setTo(Scalar(0.0));
+
+			//get half size of gaussian kernel
+			int half_size = (int)((1.5*absSigma[i][j]-0.8)/0.3+1.5);
+			if(half_size<0)half_size=0;
+
+			//iterate through all points of extrema
+			for(int xi = 0; xi < gList[i][0].rows; xi++){
+				for(int yi = 0; yi < gList[i][0].cols; yi++){
+					//if keypoint
+					if(extrema[i][j-1].at<uchar>(xi,yi) != 0){
+						//reset histogram
+						for(int k = 0; k < NUM_BINS; k++)hist_orient[k]=0.0;
+
+						for(int kk = -half_size; kk <= half_size; kk++){
+							for(int tt = -half_size; tt <= half_size; tt++){
+								if(yi+tt < 0 || yi+tt >= gList[i][0].cols || xi+kk < 0 || xi+kk >= gList[i][0].cols)
+									continue;
+
+								//sample orientation
+								double sample = orientation[i][j-1].at<double>(xi+kk,yi+tt);
+								//if(sample <= -M_PI || sample > M_PI)
+
+								sample+=M_PI;
+
+								unsigned sample_degree = sample * 180 / M_PI;
+								hist_orient[(int)sample_degree/(360/NUM_BINS)] += weight.at<double>(xi+kk, yi+tt);
+								mask.at<double>(xi+kk, yi+tt) = 1.0;
+							}
+						}
+
+						double max_peak = hist_orient[0];
+						int max_peak_index = 0;
+						for(int k = 1; k < NUM_BINS; k++){
+							if(hist_orient[k] > max_peak){
+								max_peak = hist_orient[k];
+								max_peak_index = k;
+							}
+						}
+
+						//list of magnitudes and orientations at the current extrema
+						vector<double> orien;
+						vector<double> mag;
+						for(int k = 0; k< NUM_BINS; k++){
+							//check if peak is good
+							if(hist_orient[k] > 0.8*max_peak){
+								double x1 = k-1,y1;
+								double x2 = k, y2 = hist_orient[k];
+								double x3 = k+1, y3;
+
+								if(k==0){
+									y1 = hist_orient[NUM_BINS-1];
+									y3 = hist_orient[1];
+								}else if(k == NUM_BINS-1){
+									y1 = hist_orient[NUM_BINS-1];
+									y3 = hist_orient[0];
+								}else{
+									y1 = hist_orient[k-1];
+									y3 = hist_orient[k+1];
+								}
+
+								double b[3];
+								Mat X(3,3,CV_64FC1);
+								Mat xInv(3,3,CV_64FC1);
+								X.at<double>(0,0)=x1*x1; X.at<double>(1,0)=x1; X.at<double>(2,0)=1;
+								X.at<double>(0,1)=x2*x2; X.at<double>(1,1)=x2; X.at<double>(2,1)=1;
+								X.at<double>(0,2)=x3*x3; X.at<double>(1,2)=x3; X.at<double>(2,2)=1;
+
+								xInv = X.inv();
+
+								for(int bb = 0; bb < 3; bb++)
+									b[bb] = xInv.at<double>(bb,0)*y1 + xInv.at<double>(bb,0)*y2 + xInv.at<double>(bb,0)*y3;
+
+								double x0 = -b[1] / b[0] / 2;
+
+								if(fabs(x0) > 2*NUM_BINS) x0 = x2;
+								while(x0 < 0)x0 += NUM_BINS;
+								while(x0 >= NUM_BINS)x0 -= NUM_BINS;
+
+								double x0_n = x0*(2*M_PI/NUM_BINS);
+								x0_n -= M_PI;
+
+								orien.push_back(x0_n);
+								mag.push_back(hist_orient[k]);
+							}
+						}
+
+						//save the keypoint
+						keypoints.push_back(Keypoint(xi*scale/2, yi*scale/2, mag, orien, i*intervals+j-1));
+					}
+				}
+			}
+
+			mask.release();
 		}
 	}
-
+	cout<<"kp size"<<keypoints.size()<<endl;
 
 	//release allocate memory
 	for(int i = 0; i < octaves; i++){
