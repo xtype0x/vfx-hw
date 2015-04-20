@@ -246,6 +246,7 @@ void Sift::detect_extrema(){
 			}
 		}
 	}
+	keypoint_num = kp_num;
 	// cout<<kp_num<<endl;
 	// namedWindow("gg");
 	// imshow("gg",extrema[1][0]);
@@ -388,8 +389,7 @@ void Sift::assign_orientations(){
 			mask.release();
 		}
 	}
-	cout<<"kp size"<<keypoints.size()<<endl;
-
+	
 	//release allocate memory
 	for(int i = 0; i < octaves; i++){
 		delete [] magnitude[i];
@@ -398,9 +398,179 @@ void Sift::assign_orientations(){
 	delete [] magnitude;
 	delete [] orientation;
 	delete [] hist_orient;
+	//cout<<"kp size"<<keypoints.size()<<endl;
 }
 
 void Sift::extract_keypoint_descriptors(){
+	//initialize interpolated magnitude and orientation
+	Mat **interpolatedMagnitude = new Mat*[octaves];
+	Mat **interpolatedOrientation = new Mat*[octaves];
+	for(int i = 0; i < octaves; i++){
+		interpolatedMagnitude[i] = new Mat[intervals];
+		interpolatedOrientation[i] = new Mat[intervals];
+	}
+	
+	for(int i = 0; i < octaves; i++){
+		for(int j = 1; j <= intervals; j++){
+			int _rows = gList[i][j].rows;
+			int _cols = gList[i][j].cols;
+			Mat tempImg(_rows*2, _cols*2, CV_64FC1);
+			tempImg.setTo(Scalar(0.0));
 
+			pyrUp(gList[i][j], tempImg, tempImg.size());
+			interpolatedMagnitude[i][j-1].create(_rows+1, _cols+1, CV_64FC1);
+			interpolatedMagnitude[i][j-1].setTo(Scalar(0.0));
+			interpolatedOrientation[i][j-1].create(_rows+1, _cols+1, CV_64FC1);
+			interpolatedOrientation[i][j-1].setTo(Scalar(0.0));
+	
+
+			for(double ii = 1.5; ii < _cols - 1.5; ii++){
+				for(double jj = 1.5; jj < _rows - 1.5; jj++){
+					double dx = (gList[i][j].at<double>(jj, ii+1.5) + gList[i][j].at<double>(jj, ii+0.5) - gList[i][j].at<double>(jj, ii-1.5) - gList[i][j].at<double>(jj, i-0.5)) / 2;
+					double dy = (gList[i][j].at<double>(jj+1.5, ii) + gList[i][j].at<double>(jj+0.5, ii) - gList[i][j].at<double>(jj-1.5, ii) - gList[i][j].at<double>(jj-0.5, i)) / 2;
+
+					int iii = ii+1, jjj = jj+1;
+					interpolatedMagnitude[i][j-1].at<double>(jjj,iii) = sqrt(dx*dx+dy*dy);
+					interpolatedOrientation[i][j-1].at<double>(jjj,iii) = (atan2(dy,dx)==M_PI)? -M_PI:atan2(dy,dx);
+				}
+			}
+
+			for(int k = 0; k < _cols+1; k++){
+				interpolatedMagnitude[i][j-1].at<double>(0,k) = 0;
+				interpolatedMagnitude[i][j-1].at<double>(_rows,k) = 0;
+				interpolatedOrientation[i][j-1].at<double>(0,k) = 0;
+				interpolatedOrientation[i][j-1].at<double>(_rows,k) = 0;
+			}
+			for(int k = 0; k < _rows+1; k++){
+				interpolatedMagnitude[i][j-1].at<double>(k,0) = 0;
+				interpolatedMagnitude[i][j-1].at<double>(k,_cols) = 0;
+				interpolatedOrientation[i][j-1].at<double>(k,0) = 0;
+				interpolatedOrientation[i][j-1].at<double>(k,_cols) = 0;
+			}
+
+			tempImg.release();
+		}
+	}
+
+	Mat G = build_interpolated_gaussian_table(FEATURE_WINDOW_SIZE, 0.5*FEATURE_WINDOW_SIZE);
+	vector<double> hist(DESC_NUM_BINS);
+
+	for(int i = 0; i <keypoint_num; i++){
+		int scale = keypoints[i].scale;
+		double kp_xi = keypoints[i].xi;
+		double kp_yi = keypoints[i].yi;
+		double desc_xi = kp_xi, desc_yi = kp_yi;
+
+		int ii = (int)(kp_xi*2) / (int)(pow(2.0, (double)scale/intervals));
+		int jj = (int)(kp_yi*2) / (int)(pow(2.0, (double)scale/intervals));
+
+		int width = gList[scale/intervals][0].cols;
+		int height = gList[scale/intervals][0].rows;
+
+		vector<double> mag = keypoints[i].magnitudes;
+		vector<double> orien = keypoints[i].orientations;
+
+		//find maximum
+		double main_mag = mag[0], main_orien = orien[0];
+		for(int j = 0; j < mag.size(); j++){
+			if(mag[j] > main_mag){
+				main_mag = mag[j]; main_orien = orien[j];
+			}
+		}
+		int half_size = FEATURE_WINDOW_SIZE / 2;
+		Mat weight(FEATURE_WINDOW_SIZE, FEATURE_WINDOW_SIZE, CV_64FC1);
+		vector<double> fv(FVSIZE);
+		for(int j = 0; j < FEATURE_WINDOW_SIZE; j++){
+			for(int k = 0; k < FEATURE_WINDOW_SIZE; k++){
+				if(ii+j+1 < half_size || ii+j+1 > width+half_size || jj+k+1 < half_size || jj+k+1 > half_size+height)
+					weight.at<double>(k,j) = 0.0;
+				else
+					weight.at<double>(k,j) = G.at<double>(k,j) * interpolatedMagnitude[scale/intervals][scale%intervals].at<double>(jj+k+1-half_size, ii+j+1-half_size);
+			}
+		}
+		//splitting into 16 4*4 blocks
+		for(int j = 0; j < FEATURE_WINDOW_SIZE/4; j++){
+			for(int k = 0; k < FEATURE_WINDOW_SIZE/4; k++){
+				for(int t = 0; t < DESC_NUM_BINS; t++) hist[t] = 0.0;
+
+				int start_i = ii - half_size + 1 + half_size * j / 2;
+				int start_j = jj - half_size + 1 + half_size * k / 2;
+				int limit_i = ii + half_size / 2 * (j-1);
+				int limit_j = jj + half_size / 2 * (k-1);
+
+				for(int si = start_i; si <= limit_i; si++){
+					for(int sj = start_j; sj <= limit_j; sj++){
+						if(si < 0 || si > width || sj < 0 || sj > height)continue;
+
+						double sample_orien = interpolatedOrientation[scale/intervals][scale%intervals].at<double>(sj,si);
+						sample_orien -= main_orien;
+						while(sample_orien < 0) sample_orien += (2 * M_PI);
+						while(sample_orien > 2 * M_PI) sample_orien -= (2 * M_PI);
+
+						int sample_orien_degree = sample_orien*180/M_PI;
+						int bin = sample_orien_degree/(360/DESC_NUM_BINS);
+						double bin_f = (double)sample_orien_degree/(double)(360/DESC_NUM_BINS);
+
+						hist[bin] += (1- fabs(bin_f-bin-0.5)) * weight.at<double>(k+half_size-jj-1,j+half_size-ii-1);
+					}
+				}
+				for(int t = 0; t < DESC_NUM_BINS; t++)
+					fv[(j*FEATURE_WINDOW_SIZE/4+k)*DESC_NUM_BINS + t] = hist[t];
+			}
+		}
+
+		//normalize
+		double norm = 0.0;
+		for(int j = 0; j < FVSIZE; j++) norm += pow(fv[j],2.0);
+		norm = sqrt(norm);
+		for(int j = 0; j < FVSIZE; j++){ 
+			fv[j] /= norm;
+			if(fv[j] > FV_THRESHOLD) fv[j] = FV_THRESHOLD;
+		}
+		//normalize again
+		norm = 0.0;
+		for(int j = 0; j < FVSIZE; j++) norm += pow(fv[j],2.0);
+		norm = sqrt(norm);
+		for(int j = 0; j < FVSIZE; j++)fv[j] /= norm;
+
+		descriptors.push_back(Descriptor(desc_xi, desc_yi, fv));
+	}
+
+	cout<<"dd:"<<descriptors.size()<<endl;
+	//release memory
+	for(int i = 0; i <octaves; i++){
+		delete [] interpolatedMagnitude[i];
+		delete [] interpolatedOrientation[i];
+	}
+	delete [] interpolatedMagnitude;
+	delete [] interpolatedOrientation;
+}
+
+Mat Sift::build_interpolated_gaussian_table(unsigned size, double sigma){
+	double half_kernel_size = size/2 - 0.5;
+
+	double sog=0.0;
+	Mat ret(size, size, CV_64FC1);
+
+	double temp=0.0;
+	for(int i = 0; i < size; i++){
+		for(int j = 0; j < size; j++){
+			temp = gaussian2D(i-half_kernel_size, j-half_kernel_size, sigma);
+			ret.at<double>(j,i) = temp;
+			sog+=temp;
+		}
+	}
+	for(int i = 0; i < size; i++){
+		for(int j = 0; j < size; j++){
+			ret.at<double>(j,i) = 1.0/sog * ret.at<double>(j,i);
+		}
+	}
+	return ret;
+}
+
+// gaussian2D
+// Returns the value of the bell curve at a (x,y) for a given sigma
+double Sift::gaussian2D(double x, double y, double sigma){
+	return 1.0/(2*M_PI*sigma*sigma) * exp(-(x*x+y*y)/(2.0*sigma*sigma));
 }
 

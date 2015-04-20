@@ -11,7 +11,7 @@ using namespace std;
 
 class Sift;
 class Keypoint;
-class Desciprtor;
+class Descriptor;
 
 class Sift{
 public:
@@ -28,15 +28,14 @@ private:
 	void assign_orientations();
 	void extract_keypoint_descriptors();
 
-	unsigned get_kernelsize(double sigma, double cut_off=0.001);
-	Mat* build_interpolated_gaussian_table(unsigned size, double sigma);
+	Mat build_interpolated_gaussian_table(unsigned size, double sigma);
 	double gaussian2D(double x, double y, double sigma);
 
 
 private:
 	Mat *srcImage;
-	unsigned octaves;
-	unsigned intervals;
+	int octaves;
+	int intervals;
 	int keypoint_num;
 
 	Mat **gList;		//list of gaussian blurred images
@@ -45,30 +44,30 @@ private:
 	double **absSigma;	//list of sigma used to blur image
 
 	vector<Keypoint> keypoints;
-	vector<Desciprtor> descriptors;
+	vector<Descriptor> descriptors;
 };
 
 class Keypoint{
 public:
 	Keypoint(){}
-	Keypoint(float x,float y)
+	Keypoint(double x,double y)
 		:xi(x),yi(y){}
-	Keypoint(float x, float y, vector<double> const& m, vector<double> const& o, unsigned s)
+	Keypoint(double x, double y, vector<double> const& m, vector<double> const& o, unsigned s)
 		:xi(x), yi(y), magnitudes(m), orientations(o), scale(s){}
 public:
-	float xi, yi;
+	double xi, yi;
 	vector<double> magnitudes;
 	vector<double> orientations;
 	unsigned scale;
 };
 
-class Desciprtor{
+class Descriptor{
 public:
-	Desciprtor(){}
-	Desciprtor(float x, float y, vector<double> const& f)
+	Descriptor(){}
+	Descriptor(double x, double y, vector<double> const& f)
 		:xi(x), yi(y), features(f){}
 public:
-	float xi, yi;
+	double xi, yi;
 	vector<double> features;
 
 };
