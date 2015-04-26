@@ -12,15 +12,14 @@ using namespace std;
 
 int main(int argc, char const *argv[])
 {
-	Mat image = imread("../test-case/grail00.jpg",0);
-
-	if(!image.data){//check if image is created
-		cerr<<"The image is not found"<<endl;
-		exit(1);
+	char buf[100];
+	for(int i = 0; i < 18; i++){
+		sprintf(buf, "../test-case/grail%02d.jpg",i);
+		Sift s(buf,4,2);
+		s.do_sift();
+		cout<<i<<": descriptor num:"<<s.getDescriptors().size()<<endl;
 	}
-
-	Sift s("../test-case/grail00.jpg",4,2);
-	s.do_sift();
+	
 
 	return 0;
 }

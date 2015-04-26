@@ -57,6 +57,10 @@ Sift::~Sift(){
 }
 
 void Sift::do_sift(){
+	if(!srcImage->data){
+		cerr<<"no image loaded"<<endl;
+		return;
+	}
 	build_scale_space();
 	detect_extrema();
 	assign_orientations();

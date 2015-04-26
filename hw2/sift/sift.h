@@ -20,6 +20,9 @@ public:
 	~Sift();
 
 	void do_sift();
+	vector<Descriptor> getDescriptors(){
+		return descriptors;
+	}
 
 private:
 	void generate_list();
@@ -30,7 +33,6 @@ private:
 
 	Mat *build_interpolated_gaussian_table(unsigned size, double sigma);
 	double gaussian2D(double x, double y, double sigma);
-
 
 private:
 	Mat *srcImage;
