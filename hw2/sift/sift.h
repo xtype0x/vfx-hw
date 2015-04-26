@@ -28,7 +28,7 @@ private:
 	void assign_orientations();
 	void extract_keypoint_descriptors();
 
-	Mat build_interpolated_gaussian_table(unsigned size, double sigma);
+	Mat *build_interpolated_gaussian_table(unsigned size, double sigma);
 	double gaussian2D(double x, double y, double sigma);
 
 
@@ -38,9 +38,9 @@ private:
 	int intervals;
 	int keypoint_num;
 
-	Mat **gList;		//list of gaussian blurred images
-	Mat **dogList;		//list of dog images
-	Mat **extrema;		//list of extrema points
+	Mat ***gList;		//list of gaussian blurred images
+	Mat ***dogList;		//list of dog images
+	Mat ***extrema;		//list of extrema points
 	double **absSigma;	//list of sigma used to blur image
 
 	vector<Keypoint> keypoints;
