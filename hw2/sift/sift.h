@@ -1,3 +1,6 @@
+#ifndef SIFT_H
+#define SIFT_H
+
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <vector>
@@ -6,43 +9,67 @@
 using namespace cv;
 using namespace std;
 
-#ifndef SIFT_H
-#define SIFT_H
-
 class Sift;
 class Keypoint;
-class Desciprtor;
+class Descriptor;
 
 class Sift{
 public:
-	Sift(const char* );
-	Sift();
+	Sift(const char* filename, unsigned o, unsigned i);
+	Sift(Mat image, unsigned o, unsigned i);
 	~Sift();
-private:
 
+	void do_sift();
+	vector<Descriptor> getDescriptors(){
+		return descriptors;
+	}
+
+private:
+	void generate_list();
+	void build_scale_space();
+	void detect_extrema();
+	void assign_orientations();
+	void extract_keypoint_descriptors();
+
+	Mat *build_interpolated_gaussian_table(unsigned size, double sigma);
+	double gaussian2D(double x, double y, double sigma);
+
+private:
+	Mat *srcImage;
+	int octaves;
+	int intervals;
+	int keypoint_num;
+
+	Mat ***gList;		//list of gaussian blurred images
+	Mat ***dogList;		//list of dog images
+	Mat ***extrema;		//list of extrema points
+	double **absSigma;	//list of sigma used to blur image
+
+	vector<Keypoint> keypoints;
+	vector<Descriptor> descriptors;
 };
 
 class Keypoint{
 public:
 	Keypoint(){}
-	Keypoint(float x,float y)
+	Keypoint(double x,double y)
 		:xi(x),yi(y){}
-	Keypoint(float x, float y, vector<double> const& m, vector<double> const& o, unsigned s)
+	Keypoint(double x, double y, vector<double> const& m, vector<double> const& o, unsigned s)
 		:xi(x), yi(y), magnitudes(m), orientations(o), scale(s){}
-
-	float xi, yi;
+public:
+	double xi, yi;
 	vector<double> magnitudes;
 	vector<double> orientations;
 	unsigned scale;
 };
 
-class Desciprtor{
+class Descriptor{
 public:
-	Desciprtor(){}
-	Desciprtor(float x, float y, vector<double> const& f)
+	Descriptor(){}
+	Descriptor(double x, double y, vector<double> const& f)
 		:xi(x), yi(y), features(f){}
-
-	float xi, yi;
+public:
+	double xi, yi;
 	vector<double> features;
 
 };
